@@ -1,4 +1,4 @@
-# arthorian-quest
+# Arthorian Quest
 
 > :construction: This is a work in progress. :construction:
 > It will most likely be abandoned...
