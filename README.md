@@ -54,10 +54,11 @@ and one implict hydrogen less.
 
 This function requires ``mol`` to have implicit hydrogens.
 
-..code-block::python
-   queried:Chem.Mol = querimonate(Chem.MolFromSmiles('c1cnccc1'), {2: '[c,n]'})
-   Chem.MolToSmarts(queried)
-   # '[c&H1]1:[c&H1]:[c,n]:[c&H1]:[c&H1]:[c&H1]:1'
+```python
+queried:Chem.Mol = querimonate(Chem.MolFromSmiles('c1cnccc1'), {2: '[c,n]'})
+Chem.MolToSmarts(queried)
+# '[c&H1]1:[c&H1]:[c,n]:[c&H1]:[c&H1]:[c&H1]:1'
+```
 
 Note 1. ``atom.GetSmarts()`` is a method, but it could return '[N+]' already,
 which is complicated to deal with as appending at given positions may muck things up.
