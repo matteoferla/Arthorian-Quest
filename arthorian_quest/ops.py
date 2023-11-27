@@ -22,13 +22,14 @@ def get_custom_map(query: Chem.Mol, template: Chem.Mol, smiles: str):
     return {name: {query2template[qi]: ai for qi, ai in query2analog_iter}}
 
 def prep_for_place(query: Chem.Mol, template: Chem.Mol, experiment_name: str='') -> pd.DataFrame:
-    print(Chem.MolToSmarts(query))
     arthor = QueryArthor()
     df = arthor.retrieve(Chem.MolToSmarts(query), ['real-database-22q1'])
     query.UpdatePropertyCache()
     #AllChem.SanitizeMol(query)
     if not experiment_name:
         experiment_name = query.GetProp('experiment') if query.HasProp('experiment') else 'test'
+    if len(df) == 0:
+        return pd.DataFrame()
     df = df.rename(columns={'id': 'name'})
     df['hits'] = df.smiles.apply(lambda s: [template])
     df['custom_map'] = df.smiles.apply(lambda s: get_custom_map(query, template, s))
