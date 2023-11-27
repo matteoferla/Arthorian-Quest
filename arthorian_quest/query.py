@@ -1,8 +1,10 @@
 __all__ = ['QueryArthor']
 
 import requests
+import warnings
 import pandas as pd
 from typing import List
+from rdkit import Chem
 from rdkit.Chem import PandasTools, Draw, AllChem
 
 
@@ -39,14 +41,20 @@ class QueryArthor:
         :return:
         """
         dbname: str = ','.join(dbnames)
+        if isinstance(query, Chem.Mol):
+            query = Chem.MolToSmarts(query)
         response: requests.Response = requests.get(self.base_url + f'/dt/{dbname}/search',
                                                    dict(query=query,
                                                         type='SMARTS',
                                                         length=1_000_000)
                                                    )
         data: dict = response.json()
-        assert data.get("message", '') == "SMARTS query is always false!"
-        assert data.get('recordsTotal', False), 'no matches'
+        if data.get("message", '') == "SMARTS query is always false!":
+            warnings.warn(f"SMARTS query {query} is always false")
+            return pd.DataFrame()
+        if data.get('recordsTotal', False):
+            warnings.warn(f"SMARTS query {query} returned no matches")
+            return pd.DataFrame()
         matches = pd.DataFrame(data['data'], columns=['idx', 'smiles_id', 'empty', 'something', 'db'])
         if len(matches) == 0:  # empty
             return matches
