@@ -43,6 +43,11 @@ def querimonate(mol: Chem.Mol,
     removals: List[int] = []
     mod = Chem.RWMol(mol)
     atom: Chem.Atom
+    for smarts in replacements.values():
+        if not smarts:
+            continue
+        else:
+            assert Chem.MolFromSmarts(smarts) is not None, f'Could not parse SMARTS {smarts}'
     for atom in mod.GetAtoms():
         assert atom.GetNumRadicalElectrons() == 0, 'This molecule has a radical'
         # if not isinstance(atom, Chem.QueryAtom):
