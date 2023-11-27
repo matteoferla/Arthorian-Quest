@@ -1,3 +1,5 @@
+__all__ = ['SmartMonsterHandler']
+
 from rdkit import Chem
 from fragmenstein import Monster
 from contextlib import suppress

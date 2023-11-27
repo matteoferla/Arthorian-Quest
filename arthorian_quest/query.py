@@ -1,3 +1,5 @@
+__all__ = ['QueryArthor']
+
 import requests
 import pandas as pd
 from typing import List
@@ -6,7 +8,8 @@ from rdkit.Chem import PandasTools, Draw, AllChem
 
 class QueryArthor:
     """
-    Query class for Arthorian Quest
+    Query class for Arthorian Quest.
+    It queries arthor.docking.org via ``.retrieve``
 
     See https://arthor.docking.org/api.html for the API endpoints used
 
@@ -43,6 +46,8 @@ class QueryArthor:
                                                    )
         assert response.json()['recordsTotal'], 'no matches'
         matches = pd.DataFrame(response.json()['data'], columns=['idx', 'smiles_id', 'empty', 'something', 'db'])
+        if len(matches) == 0:  # empty
+            return matches
         matches['id'] = matches.smiles_id.str.split(expand=True)[1]
         matches['smiles'] = matches.smiles_id.str.split(expand=True)[0]
         matches.drop_duplicates('id')

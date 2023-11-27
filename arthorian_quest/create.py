@@ -1,16 +1,18 @@
+__all__ = ['querimonate', 'get_charge_string']
+
 from rdkit import Chem
-from typing import Mapping, Sequence
+from typing import Mapping, Sequence, Union, List
 
 
 def querimonate(mol: Chem.Mol,
-                replacements: Mapping[int, str] = {},
+                replacements: Mapping[int, Union[str, None]] = {},
                 rgroups: Sequence[int] = {},
                 generic_arocarbons: bool = False) -> Chem.Mol:
     """
     Given a molecule, convert it to a molecule with query atoms,
     with correct element, number of hydrogens and charge,
     but with overridden values as given by ``replacements`` argument,
-    which accepts a dictionary of index (int) to SMARTS (str).
+    which accepts a dictionary of index (int) to SMARTS (str) or None (delete atom).
 
     A ``Chem.QueryAtom`` is a special atom with encoded ambiguity.
     ``Chem.MolFromSmarts`` will create a molecule with query atoms, but not a regular mol.
@@ -38,6 +40,7 @@ def querimonate(mol: Chem.Mol,
     Querimony is a complaint. There is no verb form. This is a jocular neologism,
     as RDKit will complain...
     """
+    removals: List[int] = []
     mod = Chem.RWMol(mol)
     atom: Chem.Atom
     for atom in mod.GetAtoms():
@@ -49,15 +52,21 @@ def querimonate(mol: Chem.Mol,
         scharge: str = get_charge_string(atom)
         # pick relevant SMARTS
         if idx in replacements:
-            smarts: str = replacements[idx]
+            if isinstance(replacements[idx], str):
+                smarts: str = replacements[idx]
+            else:
+                removals.append(idx)
+                smarts: str = '*'
         elif idx in rgroups:
             assert n_Hs == 0, 'R-group requested for zero Hs. Use charge or change element via ``replacement``'
             n_Xs: int = len(atom.GetNeighbors())
             smarts = f'[{symbol}H{n_Hs - 1}X{n_Xs + 1}]'
-        elif generic_arocarbons and symbol == 'c' and scharge == '':
-            smarts = f'[cH{n_Hs},nH0,oH0,sH0]'
-        else:
+        elif not generic_arocarbons or symbol != 'c' and scharge != '':
             smarts = f'[{symbol}H{n_Hs}{scharge}]'
+        elif n_Hs == 1:
+            smarts = f'[aH0X2,aH1X3]'
+        else:
+            smarts = f'[aH0]'
         # swap
         if isinstance(atom, Chem.QueryAtom):
             # weird...
@@ -68,10 +77,19 @@ def querimonate(mol: Chem.Mol,
         atom = mod.GetAtomWithIdx(idx)
         atom.SetIsotope(r + 1)
         atom.SetProp('R-group', f'R{r + 1}')
+    mod.BeginBatchEdit()
+    for idx in removals:
+        mod.RemoveAtom(idx)
+    mod.CommitBatchEdit()
     return mod.GetMol()
 
 
 def get_charge_string(atom: Chem.Atom) -> str:
+    """
+    Returns a plus or minus string for the charge of an atom.
+    :param atom: Chem.Atom
+    :return:
+    """
     # charge
     charge: int = atom.GetFormalCharge()
     if charge > 0:
