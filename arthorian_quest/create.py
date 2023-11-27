@@ -52,11 +52,11 @@ def querimonate(mol: Chem.Mol,
         scharge: str = get_charge_string(atom)
         # pick relevant SMARTS
         if idx in replacements:
-            if isinstance(replacements[idx], str):
+            if isinstance(replacements[idx], str) and replacements[idx] != '':
                 smarts: str = replacements[idx]
             else:
                 removals.append(idx)
-                smarts: str = '*'
+                smarts: str = ''
         elif idx in rgroups:
             assert n_Hs == 0, 'R-group requested for zero Hs. Use charge or change element via ``replacement``'
             n_Xs: int = len(atom.GetNeighbors())
@@ -68,8 +68,10 @@ def querimonate(mol: Chem.Mol,
         else:
             smarts = f'[aH0]'
         # swap
-        if isinstance(atom, Chem.QueryAtom):
-            # weird...
+        if smarts == '':
+            pass  # delete
+        elif isinstance(atom, Chem.QueryAtom):
+            # weird it is already a query atom
             atom.SetQuery(smarts)
         else:
             mod.ReplaceAtom(idx, Chem.AtomFromSmarts(smarts), preserveProps=True)
