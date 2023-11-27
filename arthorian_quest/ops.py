@@ -23,6 +23,7 @@ def get_custom_map(query: Chem.Mol, template: Chem.Mol, smiles: str):
 
 def prep_for_place(query: Chem.Mol, template: Chem.Mol, experiment_name: str='') -> pd.DataFrame:
     print(Chem.MolToSmarts(query))
+    arthor = QueryArthor()
     df = arthor.retrieve(Chem.MolToSmarts(query), ['real-database-22q1'])
     query.UpdatePropertyCache()
     #AllChem.SanitizeMol(query)
