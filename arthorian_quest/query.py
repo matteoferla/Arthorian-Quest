@@ -44,8 +44,10 @@ class QueryArthor:
                                                         type='SMARTS',
                                                         length=1_000_000)
                                                    )
-        assert response.json()['recordsTotal'], 'no matches'
-        matches = pd.DataFrame(response.json()['data'], columns=['idx', 'smiles_id', 'empty', 'something', 'db'])
+        data: dict = response.json()
+        assert data.get("message", '') == "SMARTS query is always false!"
+        assert data.get('recordsTotal', False), 'no matches'
+        matches = pd.DataFrame(data['data'], columns=['idx', 'smiles_id', 'empty', 'something', 'db'])
         if len(matches) == 0:  # empty
             return matches
         matches['id'] = matches.smiles_id.str.split(expand=True)[1]

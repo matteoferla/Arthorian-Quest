@@ -50,28 +50,32 @@ def querimonate(mol: Chem.Mol,
             assert Chem.MolFromSmarts(smarts) is not None, f'Could not parse SMARTS {smarts}'
     for atom in mod.GetAtoms():
         assert atom.GetNumRadicalElectrons() == 0, 'This molecule has a radical'
-        # if not isinstance(atom, Chem.QueryAtom):
         idx: int = atom.GetIdx()
         n_Hs: int = atom.GetImplicitValence() + atom.GetNumExplicitHs()
         symbol: str = atom.GetSymbol().lower() if atom.GetIsAromatic() else atom.GetSymbol()
         scharge: str = get_charge_string(atom)
         # pick relevant SMARTS
         if idx in replacements:
+            # user override replacement
             if isinstance(replacements[idx], str) and replacements[idx] != '':
                 smarts: str = replacements[idx]
             else:
                 removals.append(idx)
                 smarts: str = ''
         elif idx in rgroups:
+            # user override rgroups
             assert n_Hs == 0, 'R-group requested for zero Hs. Use charge or change element via ``replacement``'
             n_Xs: int = len(atom.GetNeighbors())
             smarts = f'[{symbol}H{n_Hs - 1}X{n_Xs + 1}]'
-        elif not generic_arocarbons or symbol != 'c' and scharge != '':
+        elif not generic_arocarbons or symbol != 'c' or scharge != '':
+            # keep as is
             smarts = f'[{symbol}H{n_Hs}{scharge}]'
         elif n_Hs == 1:
-            smarts = f'[aH0X2,aH1X3]'
+            # degenerate aromatic carbon w/ one hydrogen
+            smarts = '[aH0X2,aH1X3]'
         else:
-            smarts = f'[aH0]'
+            # degenerate aromatic carbon w/ zero hydrogens
+            smarts = '[aH0]'
         # swap
         if smarts == '':
             pass  # delete
