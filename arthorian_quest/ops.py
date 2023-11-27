@@ -56,7 +56,7 @@ def run_experiment(query: Chem.Mol, template: Chem.Mol, pdb_block, experiment_na
     print(f'{len(placements)} found')
     return placements
 
-def assess_experiment(query: Chem.Mol, template: Chem.Mol, pdb_block):
+def assess_experiment(query: Chem.Mol, template: Chem.Mol, pdb_block: str):
     name = query.GetProp('experiment') if query.HasProp('experiment') else 'test'
     query.UpdatePropertyCache()
     AllChem.SanitizeMol(query, catchErrors=True)
@@ -66,10 +66,10 @@ def assess_experiment(query: Chem.Mol, template: Chem.Mol, pdb_block):
         warnings.simplefilter("ignore")
         assert Wictor([template], pdb_block=pdb_block).place(Chem.MolToSmiles(template), long_name=name, custom_map=cm).minimized_mol
 
-def boilerplace(query, template, experiment) -> pd.DataFrame:
+def boilerplace(query, template, experiment, pdb_block: str) -> pd.DataFrame:
     query.SetProp('experiment', experiment)
     query.SetProp('template', template.GetProp('_Name') )
-    assess_experiment(query, template)
+    assess_experiment(query, template, pdb_block)
     show_experiment(query)
     analogs = prep_for_place(query, template, experiment)
     if len(analogs) == 0:
