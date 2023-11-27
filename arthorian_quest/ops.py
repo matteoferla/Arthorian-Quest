@@ -72,8 +72,5 @@ def boilerplace(query, template, experiment, pdb_block: str) -> pd.DataFrame:
     assess_experiment(query, template, pdb_block)
     show_experiment(query)
     analogs = prep_for_place(query, template, experiment)
-    if len(analogs) == 0:
-        print('No analogues')
-    else:
-        to_run[experiment] = analogs
+    print('No analogues found' if len(analogs) == 0 else f'{len(analogs)} analogues found')
     return analogs
