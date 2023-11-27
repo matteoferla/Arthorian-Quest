@@ -30,11 +30,15 @@ def prep_for_place(query: Chem.Mol, template: Chem.Mol, experiment_name: str='')
         experiment_name = query.GetProp('experiment') if query.HasProp('experiment') else 'test'
     if len(df) == 0:
         return pd.DataFrame()
-    df = df.rename(columns={'id': 'name'})
-    df['hits'] = df.smiles.apply(lambda s: [template])
-    df['custom_map'] = df.smiles.apply(lambda s: get_custom_map(query, template, s))
-    df['experiment'] = experiment_name
-    return df
+    try:
+        df = df.rename(columns={'id': 'name'})
+        df['hits'] = df.smiles.apply(lambda s: [template])
+        df['custom_map'] = df.smiles.apply(lambda s: get_custom_map(query, template, s))
+        df['experiment'] = experiment_name
+        return df
+    except Exception as error:
+        print(error.__class__.__name__, error)
+        return df
 
 def show_experiment(query3d: Chem.Mol, experiment_name: str=''):
     query = Chem.Mol(query3d)
