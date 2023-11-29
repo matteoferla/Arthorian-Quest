@@ -52,7 +52,9 @@ class QueryArthor:
         if data.get("message", '') == "SMARTS query is always false!":
             warnings.warn(f"SMARTS query {query} is always false")
             return pd.DataFrame()
-        if data.get('recordsTotal', False):
+        if data.get('warning',''):
+            warnings.warn(data['warning'])
+        if not data.get('recordsTotal', False):
             warnings.warn(f"SMARTS query {query} returned no matches")
             return pd.DataFrame()
         matches = pd.DataFrame(data['data'], columns=['idx', 'smiles_id', 'empty', 'something', 'db'])
