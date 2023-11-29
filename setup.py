@@ -20,7 +20,7 @@ else:
 
 setup(
     name='arthorian-quest',
-    version='0.1.6',
+    version='0.1.7',
     description='using Arthor and filtering the results with Fragmenstein',
     long_description=long_description,
     long_description_content_type='text/markdown',
