@@ -1,4 +1,5 @@
-from fragmenstein import Laboratory
+__all__ = ['prep_for_laboratory', 'run_experiment', 'create_laboratory_df', 'assess_experiment', 'get_custom_map']
+
 from rdkit import Chem
 from rdkit.Chem import AllChem
 import contextlib
@@ -39,6 +40,8 @@ def run_experiment(query: Chem.Mol, template: Chem.Mol, pdb_block, experiment_na
     :param experiment_name:
     :return:
     """
+    from fragmenstein import Laboratory
+
     placements = pd.DataFrame()
     with contextlib.suppress(KeyError):
         tobeplaced = create_laboratory_df(query, template, experiment_name=experiment_name)
@@ -96,6 +99,8 @@ def assess_experiment(query: Chem.Mol, template: Chem.Mol, pdb_block: str) -> Ch
     :param pdb_block:
     :return:
     """
+    from fragmenstein import Laboratory
+
     name = query.GetProp('experiment') if query.HasProp('experiment') else 'test'
     query.UpdatePropertyCache()
     AllChem.SanitizeMol(query, catchErrors=True)

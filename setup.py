@@ -20,7 +20,7 @@ else:
 
 setup(
     name='arthorian-quest',
-    version='0.1.7',
+    version='0.2',
     description='using Arthor and filtering the results with Fragmenstein',
     long_description=long_description,
     long_description_content_type='text/markdown',
@@ -34,7 +34,7 @@ setup(
     author='Matteo Ferla',
     author_email='matteo.ferla@gmail.com',
     classifiers=[ # https://pypi.org/classifiers/
-        'Development Status :: 3 - Alpha', # Development Status :: 5 - Production/Stable
+        'Development Status :: 3 - Alpha',  # Development Status :: 5 - Production/Stable
         'Intended Audience :: Science/Research',
         'Topic :: Scientific/Engineering :: Bio-Informatics',
         'Topic :: Scientific/Engineering :: Chemistry',

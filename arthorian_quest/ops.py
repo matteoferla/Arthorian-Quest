@@ -1,12 +1,12 @@
-from .query import QueryArthor
+__all__ = ['silence_rdkit', 'show_experiment', 'retrieve_smartsplus']
 
-import contextlib
-import pandas as pd
-import warnings
 from rdkit import RDLogger, Chem
 from rdkit.Chem import AllChem, Draw
 from IPython.display import display
-from typing import Dict, Union
+from typing import Union
+import PIL
+import requests
+import io
 
 
 def silence_rdkit():
@@ -33,4 +33,31 @@ def show_experiment(query3d: Chem.Mol, experiment_name: str='', save: bool=False
     if save:
         Draw.MolToFile(query, f'{experiment_name}.png')
     return None
+
+
+
+def retrieve_smartsplus(smarts: Union[str, Chem.Mol], PIL_image=True, **options) -> Union[display.Image, PIL.Image]:
+    """
+    Given a SMARTS query, retrieve the image from https://smarts.plus.
+    The returned object is an IPython.display.Image not a PIL.Image.
+    If using this image remember to cite it as
+    "SMARTSviewer smartsview.zbh.uni-hamburg.de, ZBH Center for Bioinformatics, University of Hamburg"
+
+    :param smarts: SMARTS query or Chem.Mol
+    :param PIL_image: return PIL.Image instead of IPython.display.Image
+    :param options: See https://smarts.plus/rest
+    :return:
+    """
+    if isinstance(smarts, Chem.Mol):
+        q = smarts
+        smarts: str = Chem.MolFromSmarts(q)
+    # retrieve from smarts.plus
+    response: requests.Response = requests.get('https://smarts.plus/smartsview/download_rest', # noqa to sensitive data in options
+                                               {'smarts': smarts, **options}
+                                              )
+    png_binary: bytes = response.content
+    if PIL_image:
+        return PIL.Image.open(io.BytesIO(png_binary))
+    else:
+        return display.Image(data=png_binary)
 

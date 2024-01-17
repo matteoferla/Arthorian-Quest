@@ -1,9 +1,9 @@
 # Arthorian Quest
 
 > :construction: This is a work in progress. :construction:
-> It will most likely be abandoned...
 
-An experiment in using Arthor (arthor.docking.org) by NextMove and filtering the results with Fragmenstein,
+An experiment in using Arthor (arthor.docking.org) by [NextMove Software](https://www.nextmovesoftware.com/)
+and filtering the results with Fragmenstein,
 in order to enumerate linkers of two hits, via a SMARTS pattern.
 
 The key principle is that the SMARTS pattern can be a disconnected compound, thus allowing linkers to be searched for.
@@ -19,46 +19,72 @@ Step:
 3. Filtering by 3D constrained conformer generation via Fragmenstein
 4. Placement via Fragmenstein
 
+## Install
+
+```bash
+pip install arthorian-quest
+```
+
 ## Generate SMARTS
 
 In a SMARTS pattern an atom can be an element like a SMILES with explicit hydrogens,
 say `[CH2]`, but can also be a comma separated list of alt elements say `[CH2,NH2]` (or better `[C,N;H2]`,
 and number of interactions can can be specified with "X", say `[CH2X4]` means the carbon has 2 hydrogens and 4 connections.
 If these are not specified, you have got yourself a connection vector, eh.
-NB. In Arthor, the lowercase and uppercase R notations are ignored.
+NB. In Arthor, the lowercase and uppercase R notations are best ignored.
 
-The function `querimonate` in [create.py](arthorian_quest/create.py) is intended to convert a regular `Chem.Mol`
+![smarts](smarts.png)
+
+The function `enqire` in [create.py](arthorian_quest/create.py) is intended to convert a regular `Chem.Mol`
 to one that encodes SMARTS patterns (i.e. by having not `Chem.Atom` but `Chem.QueryAtom` instances).
 
 ```python
-smol: Chem.Mol = querimonate(Chem.MolFromSmiles('c1cnccc1'), {2: '[c,n]'})
-Chem.MolToSmarts(smol)
+from arthorian_quest import enquire
+from rdkit import Chem
+
+mol: Chem.Mol = Chem.MolFromSmiles('c1cnccc1')
+query: Chem.Mol = enquire(mol, {2: '[c,n]'})
+print( Chem.MolToSmarts(query) )
 ```
-It's doc-string has this:
+will return `'[c&H1]1:[c&H1]:[c,n]:[c&H1]:[c&H1]:[c&H1]:1'`
 
-Given a molecule, convert it to a molecule with query atoms,
-with correct element, number of hydrogens and charge,
-but with overridden values as given by ``replacements`` argument,
-which accepts a dictionary of index (int) to SMARTS (str).
+See its docstring for more details.
 
-A ``Chem.QueryAtom`` is a special atom with encoded ambiguity.
-``Chem.MolFromSmarts`` will create a molecule with query atoms, but not a regular mol.
-A query atom has the additional methods
-``.HasQuery()``, ``.GetQueryType()``, ``.DescribeQuery()``.
-cannot be instantiated from Python, but can be using ``Chem.AtomFromSmarts``.
+![example)](example.png)
 
-Additionally, any atom idx in argument ``rgroups`` will get a sequential isotope number from one
-and property 'R-group' of R + off-by-one number.
-If this index was not in replacements, then the SMARTS will have one connection more than there are
-and one implict hydrogen less.
+To visualise the molecule as 2D `show_experiment` will do
+```python
+query: Chem.Mol
 
-This function requires ``mol`` to have implicit hydrogens.
+from arthorian_quest import show_experiment
+
+show_experiment(query, 'Trying a pyridine')
+```
+
+To visualise better using SMARTSviewer (ZBH Center for Bioinformatics, University of Hamburg)
 
 ```python
-queried:Chem.Mol = querimonate(Chem.MolFromSmiles('c1cnccc1'), {2: '[c,n]'})
-Chem.MolToSmarts(queried)
-# '[c&H1]1:[c&H1]:[c,n]:[c&H1]:[c&H1]:[c&H1]:1'
+from arthorian_quest import retrieve_smartsplus
+import PIL
+from rdkit import Chem
+
+query: Chem.Mol
+image: PIL.Image = retrieve_smartsplus( query )
+
+image
 ```
+
+There is a `Shorthands` enum with a few values:
+
+```python
+from arthorian_quest import Shorthands
+
+print(Shorthands.HALOGEN)  # [F,Cl,Br,I]
+print(Shorthands.ALIPHATIC_DONOR)  # [N,O,S;!H0;v3,v4&+1]
+...
+```
+
+To remove an atom pass a value of '' (or `Shorthands.DELETE`) to the replacement map.
 
 Note 1. ``atom.GetSmarts()`` is a method, but it could return '[N+]' already,
 which is complicated to deal with as appending at given positions may muck things up.
@@ -89,8 +115,11 @@ results: pd.DataFrame = QueryArthor().retrieve(query=query, QueryArthor.enamine_
 
 ## Filtering by 3D
 
-In [quick_place.py](arthorian_quest/quick_place.py) is `SmartMonsterHandler`,
-which is not a subclass of Monster. As I mean to make it more in line with `Victor`.
+This part uses Fragmenstein (github.com/matteoferla/Fragmenstein) to generate conformers.
+
+### Simple
+
+`SmartMonsterHandler` is not a subclass of Monster. As I mean to make it more in line with `Victor`.
 
 A new monster object is created for each molecule because otherwise the parameters linker and cause interference.
 
@@ -99,17 +128,45 @@ This is bad. As a result a check happens to prevent this. `monster.convert_origi
 i.e. ignore this atom. When a molecule is ignored it's values are marked as failed.
 
 ```python
+from arthorian_quest import SmartMonsterHandler
+import pandas as pd
+
+query: Chem.Mol = ...
+matches: pd.DataFrame = ...
 results = matches.mol.apply(SmartMonsterHandler([x1594, fippedSulfonamide], query, joining_cutoff=10))
 matches['success'] = results.loc[~results.isna()].apply(operator.itemgetter('success'))
 matches['ddG'] = results.loc[~results.isna()].apply(operator.itemgetter('ddG'))
 matches['minimized_mol'] = results.loc[~results.isna()].apply(operator.itemgetter('mol'))
 ```
 
-## Fragmenstein
+## Pipeline
+If you are feeling bold try `run_experiment`.
+But do note that you might get too many for reason or none.
+Getting a SMARTS pattern perfect is not trivial, so it may be needed to try a few times,
+before running the placements.
 
-The above needs to be incorporated in Victor, in order to get in protein results.
-But actually for now. The results are rather surprising as the linkages are generally impossible/contorted,
-regardless of protein.
+```python
+from arthorian_quest import enquire, create_laboratory_df, assess_experiment
+import pandas as pd
+from rdkit import Chem
+from fragmenstein import Laboratory, Wictor
+# do whatever fix, eg.
+# change parser to Without PyRosetta Victor (quicker)
+Laboratory.Victor = Wictor
+
+template_mol: Chem.Mol = ...
+query_mol: Chem.Mol = enquire(template_mol, ...)
+pdb_block: str = ...
+
+analogs: pd.DataFrame = create_laboratory_df(query_mol, template_mol, experiment_name='experiment 123')
+print(f'{len(analogs)} analogues found')
+# check it works
+assess_experiment(query_mol, template_mol, pdb_block)
+```
+
+
+
+
 
 ## Etc.
 

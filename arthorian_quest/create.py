@@ -2,12 +2,8 @@ __all__ = ['enquire', 'get_charge_string']
 
 from rdkit import Chem
 from typing import Mapping, Sequence, Union, List
-from IPython.display import Image as IPyImage
-from PIL import Image as PILImage
-import requests
-import io
 import warnings
-
+from .shorthands import Shorthands
 
 def enquire(mol: Chem.Mol,
                 replacements: Mapping[int, Union[str, None]] = {},
@@ -33,6 +29,7 @@ def enquire(mol: Chem.Mol,
     This function requires ``mol`` to have implicit hydrogens.
 
     ..code-block::python
+
        queried:Chem.Mol = enquire(Chem.MolFromSmiles('c1cnccc1'), {2: '[c,n]'})
        Chem.MolToSmarts(queried)
        # '[c&H1]1:[c&H1]:[c,n]:[c&H1]:[c&H1]:[c&H1]:1'
@@ -45,59 +42,76 @@ def enquire(mol: Chem.Mol,
     Querimony is a complaint. There is no verb form. This is a jocular neologism,
     as RDKit will complain... But the name is too confusing to write.
     """
-    removals: List[int] = []
+
     mod = Chem.RWMol(mol)
     atom: Chem.Atom
+    # ## convert shorthands enum into str
+    replacements = {idx: smarts.value if isinstance(smarts, Shorthands) else smarts
+                    for idx, smarts in replacements.items()}
+    # ## sanity check
     for smarts in replacements.values():
         if not smarts:
             continue
         else:
             assert Chem.MolFromSmarts(smarts) is not None, f'Could not parse SMARTS {smarts}'
+    # ## iterate over atoms
+    removals: List[int] = []
     for atom in mod.GetAtoms():
-        assert atom.GetNumRadicalElectrons() == 0, 'This molecule has a radical'
-        idx: int = atom.GetIdx()
-        n_Hs: int = atom.GetImplicitValence() + atom.GetNumExplicitHs()
-        symbol: str = atom.GetSymbol().lower() if atom.GetIsAromatic() else atom.GetSymbol()
-        scharge: str = get_charge_string(atom)
-        # pick relevant SMARTS
-        if idx in replacements:
-            # user override replacement
-            if isinstance(replacements[idx], str) and replacements[idx] != '':
-                smarts: str = replacements[idx]
-            else:
-                removals.append(idx)
-                smarts: str = ''
-        elif idx in rgroups:
-            # user override rgroups
-            assert n_Hs == 0, 'R-group requested for zero Hs. Use charge or change element via ``replacement``'
-            n_Xs: int = len(atom.GetNeighbors())
-            smarts = f'[{symbol}H{n_Hs - 1}X{n_Xs + 1}]'
-        elif not generic_arocarbons or symbol != 'c' or scharge != '':
-            # keep as is
-            smarts = f'[{symbol}H{n_Hs}{scharge}]'
-        elif n_Hs == 1:
-            # degenerate aromatic carbon w/ one hydrogen
-            smarts = '[aH0X2,aH1X3]'
-        else:
-            # degenerate aromatic carbon w/ zero hydrogens
-            smarts = '[aH0]'
-        # swap
-        if smarts == '':
-            pass  # delete
-        elif isinstance(atom, Chem.QueryAtom):
-            # weird it is already a query atom
-            atom.SetQuery(smarts)
-        else:
-            mod.ReplaceAtom(idx, Chem.AtomFromSmarts(smarts), preserveProps=True)
+        _atomic_enquire(atom, mod, replacements, removals, rgroups, generic_arocarbons)
     for r, idx in enumerate(rgroups):
         atom = mod.GetAtomWithIdx(idx)
         atom.SetIsotope(r + 1)
         atom.SetProp('R-group', f'R{r + 1}')
+    # ## deal with removals
     mod.BeginBatchEdit()
     for idx in removals:
         mod.RemoveAtom(idx)
     mod.CommitBatchEdit()
+    # done!
     return mod.GetMol()
+
+def _atomic_enquire(atom: Chem.Atom,
+                    mod: Chem.RWMol,
+                    replacements: Mapping[int, Union[str, None]],
+                    removals: List[int],
+                    rgroups: Sequence[int],
+                    generic_arocarbons: bool
+                    ):
+    assert atom.GetNumRadicalElectrons() == 0, 'This molecule has a radical'
+    idx: int = atom.GetIdx()
+    n_Hs: int = atom.GetImplicitValence() + atom.GetNumExplicitHs()
+    symbol: str = atom.GetSymbol().lower() if atom.GetIsAromatic() else atom.GetSymbol()
+    scharge: str = get_charge_string(atom)
+    # pick relevant SMARTS
+    if idx in replacements:
+        # user override replacement
+        if isinstance(replacements[idx], str) and replacements[idx] != '':
+            smarts: str = replacements[idx]
+        else:
+            removals.append(idx)
+            smarts: str = ''
+    elif idx in rgroups:
+        # user override rgroups
+        assert n_Hs == 0, 'R-group requested for zero Hs. Use charge or change element via ``replacement``'
+        n_Xs: int = len(atom.GetNeighbors())
+        smarts = f'[{symbol}H{n_Hs - 1}X{n_Xs + 1}]'
+    elif not generic_arocarbons or symbol != 'c' or scharge != '':
+        # keep as is
+        smarts = f'[{symbol}H{n_Hs}{scharge}]'
+    elif n_Hs == 1:
+        # degenerate aromatic carbon w/ one hydrogen
+        smarts = '[aH0X2,aH1X3]'
+    else:
+        # degenerate aromatic carbon w/ zero hydrogens
+        smarts = '[aH0]'
+    # swap
+    if smarts == '':
+        pass  # delete, see `removals`
+    elif isinstance(atom, Chem.QueryAtom):
+        # weird it is already a query atom
+        atom.SetQuery(smarts)
+    else:
+        mod.ReplaceAtom(idx, Chem.AtomFromSmarts(smarts), preserveProps=True)
 
 def querimonate(*args, **kwargs):
     """
@@ -120,28 +134,3 @@ def get_charge_string(atom: Chem.Atom) -> str:
         return '-' * abs(charge)
     else:
         return ''
-
-def retrieve_smartsplus(smarts: Union[str, Chem.Mol], PIL_image=True, **options) -> Union[IPyImage, PILImage.Image]:
-    """
-    Given a SMARTS query, retrieve the image from https://smarts.plus.
-    The returned object is an IPython.display.Image not a PIL.Image.
-    If using this image remember to cite it as
-    "SMARTSviewer smartsview.zbh.uni-hamburg.de, ZBH Center for Bioinformatics, University of Hamburg"
-
-    :param smarts: SMARTS query or Chem.Mol
-    :param PIL_image: return PIL.Image instead of IPython.display.Image
-    :param options: See https://smarts.plus/rest
-    :return:
-    """
-    if isinstance(smarts, Chem.Mol):
-        q = smarts
-        smarts: str = Chem.MolFromSmarts(q)
-    # retrieve from smarts.plus
-    response: requests.Response = requests.get('https://smarts.plus/smartsview/download_rest',
-                                               {'smarts': smarts, **options}
-                                              )
-    png_binary: bytes = response.content
-    if PIL_image:
-        return PILImage.open(io.BytesIO(png_binary))
-    else:
-        return IPyImage(data=png_binary)
