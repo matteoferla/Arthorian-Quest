@@ -1,10 +1,15 @@
-__all__ = ['querimonate', 'get_charge_string']
+__all__ = ['enquire', 'get_charge_string']
 
 from rdkit import Chem
 from typing import Mapping, Sequence, Union, List
+from IPython.display import Image as IPyImage
+from PIL import Image as PILImage
+import requests
+import io
+import warnings
 
 
-def querimonate(mol: Chem.Mol,
+def enquire(mol: Chem.Mol,
                 replacements: Mapping[int, Union[str, None]] = {},
                 rgroups: Sequence[int] = {},
                 generic_arocarbons: bool = False) -> Chem.Mol:
@@ -28,7 +33,7 @@ def querimonate(mol: Chem.Mol,
     This function requires ``mol`` to have implicit hydrogens.
 
     ..code-block::python
-       queried:Chem.Mol = querimonate(Chem.MolFromSmiles('c1cnccc1'), {2: '[c,n]'})
+       queried:Chem.Mol = enquire(Chem.MolFromSmiles('c1cnccc1'), {2: '[c,n]'})
        Chem.MolToSmarts(queried)
        # '[c&H1]1:[c&H1]:[c,n]:[c&H1]:[c&H1]:[c&H1]:1'
 
@@ -36,9 +41,9 @@ def querimonate(mol: Chem.Mol,
     which is complicated to deal with as appending at given positions may muck things up.
     And certain SMILES are not legal, for example 'CC[O+H2]' should be 'CC[OH2+]'
 
-    Note 2. There is no OED word for 'to make into a query'... querify? Shmeh.
+    This method was formerly called ``querimonate``.
     Querimony is a complaint. There is no verb form. This is a jocular neologism,
-    as RDKit will complain...
+    as RDKit will complain... But the name is too confusing to write.
     """
     removals: List[int] = []
     mod = Chem.RWMol(mol)
@@ -94,6 +99,12 @@ def querimonate(mol: Chem.Mol,
     mod.CommitBatchEdit()
     return mod.GetMol()
 
+def querimonate(*args, **kwargs):
+    """
+    See ``enquire``.
+    """
+    warnings.warn('`querimonate` has been renamed `eniquire`. Use `enquire` instead.', DeprecationWarning)
+    return enquire(*args, **kwargs)
 
 def get_charge_string(atom: Chem.Atom) -> str:
     """
@@ -109,3 +120,28 @@ def get_charge_string(atom: Chem.Atom) -> str:
         return '-' * abs(charge)
     else:
         return ''
+
+def retrieve_smartsplus(smarts: Union[str, Chem.Mol], PIL_image=True, **options) -> Union[IPyImage, PILImage.Image]:
+    """
+    Given a SMARTS query, retrieve the image from https://smarts.plus.
+    The returned object is an IPython.display.Image not a PIL.Image.
+    If using this image remember to cite it as
+    "SMARTSviewer smartsview.zbh.uni-hamburg.de, ZBH Center for Bioinformatics, University of Hamburg"
+
+    :param smarts: SMARTS query or Chem.Mol
+    :param PIL_image: return PIL.Image instead of IPython.display.Image
+    :param options: See https://smarts.plus/rest
+    :return:
+    """
+    if isinstance(smarts, Chem.Mol):
+        q = smarts
+        smarts: str = Chem.MolFromSmarts(q)
+    # retrieve from smarts.plus
+    response: requests.Response = requests.get('https://smarts.plus/smartsview/download_rest',
+                                               {'smarts': smarts, **options}
+                                              )
+    png_binary: bytes = response.content
+    if PIL_image:
+        return PILImage.open(io.BytesIO(png_binary))
+    else:
+        return IPyImage(data=png_binary)
