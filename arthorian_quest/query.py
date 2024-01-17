@@ -28,7 +28,7 @@ class QueryArthor:
     def dbs(self):
         return pd.DataFrame(requests.get(self.base_url + 'dt/data').json())
 
-    def retrieve(self, query: str, dbnames: List[str]):
+    def retrieve(self, query: str, dbnames: List[str], search_type='SMARTS', length=1_000):
         """
         Returns a dataframe of the results of the query,
         with fields:
@@ -45,8 +45,8 @@ class QueryArthor:
             query = Chem.MolToSmarts(query)
         response: requests.Response = requests.get(self.base_url + f'/dt/{dbname}/search',
                                                    dict(query=query,
-                                                        type='SMARTS',
-                                                        length=1_000_000)
+                                                        type=search_type,
+                                                        length=length)
                                                    )
         data: dict = response.json()
         if data.get("message", '') == "SMARTS query is always false!":
