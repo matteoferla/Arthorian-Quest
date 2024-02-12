@@ -3,6 +3,7 @@ __all__ = ['silence_rdkit', 'show_experiment', 'retrieve_smartsplus']
 from rdkit import RDLogger, Chem
 from rdkit.Chem import AllChem, Draw
 from IPython.display import display
+from IPython.display import Image as IPythonImage
 from typing import Union
 import PIL
 import requests
@@ -36,7 +37,7 @@ def show_experiment(query3d: Chem.Mol, experiment_name: str='', save: bool=False
 
 
 
-def retrieve_smartsplus(smarts: Union[str, Chem.Mol], PIL_image=True, **options) -> Union[display.Image, PIL.Image]:
+def retrieve_smartsplus(smarts: Union[str, Chem.Mol], PIL_image=True, **options) -> Union[IPythonImage, PIL.Image]:
     """
     Given a SMARTS query, retrieve the image from https://smarts.plus.
     The returned object is an IPython.display.Image not a PIL.Image.
@@ -59,5 +60,5 @@ def retrieve_smartsplus(smarts: Union[str, Chem.Mol], PIL_image=True, **options)
     if PIL_image:
         return PIL.Image.open(io.BytesIO(png_binary))
     else:
-        return display.Image(data=png_binary)
+        return IPythonImage(data=png_binary)
 
