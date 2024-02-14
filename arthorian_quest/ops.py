@@ -51,7 +51,7 @@ def retrieve_smartsplus(smarts: Union[str, Chem.Mol], PIL_image=True, **options)
     """
     if isinstance(smarts, Chem.Mol):
         q = smarts
-        smarts: str = Chem.MolFromSmarts(q)
+        smarts: str = Chem.MolToSmarts(q)
     # retrieve from smarts.plus
     response: requests.Response = requests.get('https://smarts.plus/smartsview/download_rest', # noqa to sensitive data in options
                                                {'smarts': smarts, **options}

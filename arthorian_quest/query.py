@@ -48,6 +48,9 @@ class QueryArthor:
                                                         type=search_type,
                                                         length=length)
                                                    )
+        if response.status_code == 503:
+            raise ConnectionError('Arthor unavailable. cf. https://arthor.docking.org/')
+        response.raise_for_status()
         data: dict = response.json()
         if data.get("message", '') == "SMARTS query is always false!":
             warnings.warn(f"SMARTS query {query} is always false")
