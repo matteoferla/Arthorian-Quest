@@ -6,7 +6,7 @@ import contextlib
 import pandas as pd
 import warnings
 from .query import QueryArthor
-from typing import Dict, Union, Optional
+from typing import Dict, Union, Optional, List
 
 
 def prep_for_laboratory(query_mol: Chem.Mol,
@@ -49,7 +49,7 @@ def run_experiment(query: Chem.Mol, template: Chem.Mol, pdb_block, experiment_na
     placements['experiment'] = experiment_name
     return placements
 
-def create_laboratory_df(query_mol: Chem.Mol, template_mol: Chem.Mol, experiment_name: str= '') -> pd.DataFrame:
+def create_laboratory_df(query_mols: List[Chem.Mol], template_mols: List[Chem.Mol], experiment_name: str= '') -> pd.DataFrame:
     """
     Given a query molecule and a template molecule, return a dataframe of analogues
     by searching Arthor.
@@ -66,23 +66,31 @@ def create_laboratory_df(query_mol: Chem.Mol, template_mol: Chem.Mol, experiment
     :param experiment_name:
     :return:
     """
+    if isinstance(query_mols, Chem.Mol):
+        query_mols = [query_mols]
+    if isinstance(template_mols, Chem.Mol):
+        template_mols = [template_mols]
+    assert len(query_mols) == len(template_mols), 'Query and template molecules must be the same length (=paired)'
     # ## Sanitize
-    if not experiment_name and query_mol.HasProp('experiment'):
-        experiment_name = query_mol.GetProp('experiment')
-    query_mol.SetProp('experiment', experiment_name)
-    query_mol.SetProp('template', template_mol.GetProp('_Name'))
+    if not experiment_name and query_mols[0].HasProp('experiment'):
+        experiment_name = query_mols[0].GetProp('experiment')
+    for query_mol, template_mol in zip(query_mols, template_mols):
+        query_mol.SetProp('experiment', experiment_name)
+        query_mol.SetProp('template', template_mol.GetProp('_Name'))
+        query_mol.UpdatePropertyCache()
     # ## Run search
     arthor = QueryArthor()
-    df = arthor.retrieve(Chem.MolToSmarts(query_mol), ['real-database-22q1'])
-    query_mol.UpdatePropertyCache()
+    df = arthor.retrieve('.'.join([Chem.MolToSmarts(query_mol) for query_mol in query_mols]),
+                         ['real-database-22q1'])
     #AllChem.SanitizeMol(query)
     # exit early if no hits
     if len(df) == 0:
         return pd.DataFrame()
     try:
         df = df.rename(columns={'id': 'name'})
-        df['hits'] = df.smiles.apply(lambda s: [template_mol])
-        mapper = lambda smiles: {template_mol.GetProp('_Name'): get_custom_map(query_mol, template_mol, smiles)}
+        df['hits'] = df.smiles.apply(lambda s: template_mols)
+        mapper = lambda smiles: {template_mol.GetProp('_Name'): get_custom_map(query_mol, template_mol, smiles)
+                                 for query_mol, template_mol in zip(query_mols, template_mols)}
         df['custom_map'] = df.smiles.apply(mapper)
         df['experiment'] = experiment_name
         return df

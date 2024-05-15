@@ -6,10 +6,11 @@ An experiment in using Arthor (arthor.docking.org) by [NextMove Software](https:
 and filtering the results with Fragmenstein,
 in order to enumerate linkers of two hits, via a SMARTS pattern.
 
-The key principle is that the SMARTS pattern can be a disconnected compound, thus allowing linkers to be searched for.
+The key principle is that the SMARTS pattern can be both ambiguous and a disconnected,
+thus allowing linkers to be searched for.
 By creating a SMARTS pattern with a wished for expansion vector, one can search for linkers that connect two hits.
 
-To wittle out impossible compounds, the results are filtered by 3D constrained conformer generation via Fragmenstein,
+To whittle out impossible compounds, the results are filtered by 3D constrained conformer generation via Fragmenstein,
 but using the SMARTS pattern making it lightning fast.
 
 Step:
@@ -25,7 +26,7 @@ Step:
 pip install arthorian-quest
 ```
 
-## Generate SMARTS
+## Generate ambiguous SMARTS
 
 In a SMARTS pattern an atom can be an element like a SMILES with explicit hydrogens,
 say `[CH2]`, but can also be a comma separated list of alt elements say `[CH2,NH2]` (or better `[C,N;H2]`,

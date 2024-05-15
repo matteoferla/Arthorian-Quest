@@ -6,6 +6,7 @@ from IPython.display import display
 from IPython.display import Image as IPythonImage
 from typing import Union
 import PIL
+from PIL.Image import Image as PILImage
 import requests
 import io
 
@@ -37,7 +38,7 @@ def show_experiment(query3d: Chem.Mol, experiment_name: str='', save: bool=False
 
 
 
-def retrieve_smartsplus(smarts: Union[str, Chem.Mol], PIL_image=True, **options) -> Union[IPythonImage, PIL.Image]:
+def retrieve_smartsplus(smarts: Union[str, Chem.Mol], PIL_image=True, **options) -> Union[IPythonImage, PILImage]:
     """
     Given a SMARTS query, retrieve the image from https://smarts.plus.
     The returned object is an IPython.display.Image not a PIL.Image.
